@@ -1,0 +1,102 @@
+-- 1. Используя SQL язык и произвольные две таблицы из модели данных необходимо объединить их различными способами (UNION,JOIN)
+---- join
+select a.aircraft_code, a.model, s.seat_no, s.fare_conditions
+from bookings.seats as s
+         join bookings.aircrafts as a on s.aircraft_code = a.aircraft_code
+where a.model ~ '^Bombardier'
+order by s.seat_no desc;
+
+---- union
+select departure_city
+from bookings.routes
+where arrival_city = 'Москва'
+union
+select departure_city
+from bookings.routes
+where arrival_city = 'Казань'
+order by departure_city;
+
+-- 2. Используя SQL язык напишите запрос с любым фильтром WHERE к произвольной таблице и результат отсортируйте
+-- (ORDER BY) с ограничением вывода по количеству строк (LIMIT)
+select tf.ticket_no, amount
+from bookings.tickets t
+         join bookings.ticket_flights tf on t.ticket_no = tf.ticket_no
+where passenger_name = 'ALINA VOLKOVA'
+order by amount desc
+limit 3;
+--
+select airport_name, city, longitude
+from bookings.airports
+order by longitude desc
+limit 5;
+
+-- 3. Используя SQL язык напишите OLAP запрос к произвольной связке таблиц (в рамках JOIN оператора), используя
+-- оператор GROUP BY и любые агрегатные функции count,min,max,sum
+select a.aircraft_code,
+       a.model,
+       left(a.model, strpos(a.model, ' ') - 1) as company,
+       count(*)                                as seats_num
+from bookings.aircrafts a,
+     bookings.seats s
+where a.aircraft_code = s.aircraft_code
+group by 1, 2, 3
+limit 5;
+
+-- 4. Используя SQL язык примените JOIN операторы (INNER,LEFT,RIGHT) для более чем двух таблиц из модели данных
+
+select s.seat_no, p.passenger_name, p.email
+from bookings.seats s
+         left outer join (select t.passenger_name,
+                                 b.seat_no,
+                                 t.contact_data -> 'email' as email
+                          from (
+                                   bookings.ticket_flights tf
+                                       join bookings.tickets t on tf.ticket_no = t.ticket_no
+                                   )
+                                   join bookings.boarding_passes b
+                                        on tf.ticket_no = b.ticket_no
+                                            and tf.flight_id = b.flight_id
+                          where tf.flight_id = 27584) as p
+                         on s.seat_no = p.seat_no
+where s.aircraft_code = 'SU9'
+order by left(s.seat_no, length(s.seat_no) - 1)::integer,
+         right(s.seat_no, 1);
+
+-- 5. Создайте виртуальную таблицу VIEW с произвольным именем для SQL запроса из задания 2)
+
+create view top_five_eastern_airports as
+(
+    select airport_name, city, longitude
+    from bookings.airports
+    order by longitude desc
+    limit 5
+);
+
+-- 6. используя язык программирования Python, создайте Python-скрипт для вывода данных на экран(в консоль или IDE) из задания 5
+
+import psycopg2
+from psycopg2 import Error
+
+try:
+    # Подключение к существующей базе данных
+    connection = psycopg2.connect(user="postgres", password="postgres", host="localhost", port="5432", database="demo")
+    # Курсор для выполнения операций с базой данных
+    cursor = connection.cursor()
+    # Распечатать сведения о PostgreSQL
+    print("Информация о сервере PostgreSQL")
+    print(connection.get_dsn_parameters(), "\n")
+    # Выполнение SQL-запроса
+    cursor.execute("select * from top_five_eastern_airports")
+    records = cursor.fetchall()
+    for row in records:
+        print("airport_name", row[0])
+        print("city", row[1])
+        print("longitude", row[2], "\n")
+# Получить результат
+except (Exception, Error) as error:
+    print("Ошибка при работе с PostgreSQL", error)
+finally:
+    if connection:
+        cursor.close()
+        connection.close()
+        print("Соединение с PostgreSQL закрыто")
