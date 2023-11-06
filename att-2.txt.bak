@@ -1,6 +1,0 @@
-1. select a.aircraft_code, a.model, s.seat_no, s.fare_conditions from bookings.seats as s
-join bookings.aircrafts as a on s.aircraft_code=a.aircraft_code
-where a.model ~'^Bombardier'
-order by s.seat_no desc;
-
-2. 
